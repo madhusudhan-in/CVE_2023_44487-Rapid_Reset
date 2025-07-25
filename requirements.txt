@@ -1,0 +1,18 @@
+# Requirements for CVE-2023-44487 Rapid Reset Testing Tool
+# Python 3.7+ required
+
+# No external dependencies required - uses only Python standard library:
+# - asyncio (for async operations)
+# - ssl (for TLS/HTTPS connections)
+# - socket (for network connections)
+# - struct (for binary data packing)
+# - argparse (for command line arguments)
+# - logging (for logging)
+# - urllib.parse (for URL parsing)
+# - dataclasses (for data structures)
+# - typing (for type hints)
+
+# Optional development dependencies:
+# pytest>=6.0.0
+# black>=21.0.0
+# mypy>=0.910
