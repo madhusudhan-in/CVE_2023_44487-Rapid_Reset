@@ -9,7 +9,7 @@ immediately by RST_STREAM frames to overwhelm the server.
 WARNING: This tool is for educational and authorized testing purposes only.
 Only use this against systems you own or have explicit permission to test.
 
-Author: Security Testing Tool
+Author: Madhusudhan
 License: MIT
 """
 
