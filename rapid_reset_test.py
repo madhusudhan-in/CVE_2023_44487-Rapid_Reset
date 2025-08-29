@@ -10,7 +10,6 @@ WARNING: This tool is for educational and authorized testing purposes only.
 Only use this against systems you own or have explicit permission to test.
 
 Author: Madhusudhan
-License: MIT
 """
 
 import argparse
