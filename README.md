@@ -1,6 +1,6 @@
 # CVE-2023-44487 HTTP/2 Rapid Reset Testing Tool - Enhanced Edition
 
-A comprehensive Python testing tool for **CVE-2023-44487**, the HTTP/2 Rapid Reset vulnerability. This enhanced version provides granular control over testing parameters, multiple attack patterns, and advanced monitoring capabilities.
+A comprehensive Python testing tool for **CVE-2023-44487**, the HTTP/2 Rapid Reset vulnerability. This repository contains both attack testing and verification-focused tools.
 
 ## ⚠️ **IMPORTANT DISCLAIMER**
 
@@ -8,7 +8,7 @@ A comprehensive Python testing tool for **CVE-2023-44487**, the HTTP/2 Rapid Res
 
 - Only use against systems you own or have explicit written permission to test
 - Unauthorized use may be illegal and could cause service disruption
-- The tool performs a Denial of Service attack that can impact server availability
+- The tools perform attack tests that can impact server availability
 - Always ensure you have proper authorization before testing
 
 ## 🔍 About CVE-2023-44487
@@ -24,60 +24,289 @@ CVE-2023-44487, also known as "HTTP/2 Rapid Reset," is a critical vulnerability 
 
 **Impact:** Denial of Service, Resource Exhaustion
 
-## 🚀 Enhanced Features
+## 📋 Requirements
 
-### **Multiple Attack Patterns**
+- Python 3.7 or higher
+- `h2` library: `pip install h2`
+
+## 📖 Installation
+
+1. **Clone or download the repository:**
+```bash
+git clone https://github.com/madhusudhan-in/CVE_2023_44487-Rapid_Reset.git
+cd CVE_2023_44487-Rapid_Reset
+```
+
+2. **Install dependencies:**
+```bash
+pip install h2
+```
+
+3. **Make scripts executable:**
+```bash
+chmod +x *.py
+```
+
+4. **Verify Python version:**
+```bash
+python3 --version  # Should be 3.7+
+```
+
+---
+
+# 🛡️ Verification Tool (Enhanced)
+
+## `cve_2023_44487_verifier_enhanced.py`
+
+**Purpose:** Enforcement-signal detection for post-patch verification and compliance checking
+
+### Key Features
+
+- 📡 **Server SETTINGS Capture**: Logs the server's initial HTTP/2 SETTINGS frame
+- 🛡️ **GOAWAY Frame Analysis**: Captures and categorizes all GOAWAY frames with RFC 9113-compliant error codes
+- 📊 **Per-Second Rate Tracking**: Monitors reset rate per second to detect adaptive throttling patterns
+- 🔍 **Enforcement Signal Detection**:
+  - ✅ ENHANCE_YOUR_CALM (0xb) GOAWAY — protocol-layer enforcement
+  - ✅ TCP RST at transport layer — edge-level intervention
+  - ✅ REFUSED_STREAM (0x7) responses — stream-level rate limiting
+  - ✅ Adaptive throttling patterns — intelligent rate-limiting detection
+- 📈 **Connection Close Classification**: Identifies how and why connections close
+- ⚡ **Concurrent Connection Testing**: Test multiple HTTP/2 connections simultaneously
+- 🎯 **Intelligent Verdict System**: Classifies vulnerability status based on actual enforcement signals
+
+### Quick Start
+
+```bash
+# Basic verification
+python3 cve_2023_44487_verifier_enhanced.py target.com
+
+# Multiple concurrent connections
+python3 cve_2023_44487_verifier_enhanced.py target.com -c 5 -s 500
+
+# Verbose output with debugging
+python3 cve_2023_44487_verifier_enhanced.py target.com -v -c 3 -s 1000
+
+# Baseline test only (normal requests)
+python3 cve_2023_44487_verifier_enhanced.py target.com --baseline-only
+```
+
+### Command Line Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `host` | Target hostname (required) | - |
+| `-p, --port` | Target port | 443 |
+| `--no-ssl` | Disable SSL/TLS | False (SSL enabled) |
+| `-s, --streams` | Number of streams per connection | 1000 |
+| `-d, --delay` | Delay between stream operations (seconds) | 0.001 |
+| `-c, --connections` | Number of concurrent connections | 1 |
+| `--baseline-only` | Only perform baseline test (no attack) | False |
+| `-v, --verbose` | Verbose/debug output | False |
+
+### Understanding the Verdict
+
+The script provides an intelligent verdict based on **RFC 9113-compliant** enforcement signals:
+
+#### ✅ ENFORCEMENT CONFIRMED
+```
+Server sends GOAWAY with ENHANCE_YOUR_CALM (0xb) error code
+Classification: NOT VULNERABLE — protocol-layer enforcement is active
+Meaning: HTTP/2 implementation has proper rate-limiting controls
+```
+
+#### ⚠️ EDGE/TRANSPORT-LEVEL INTERVENTION DETECTED
+```
+50%+ of connections terminated via TCP reset
+Classification: LIKELY PROTECTED — verify with edge/infrastructure team
+Meaning: Edge appliance or DDoS protection engaged at transport layer
+```
+
+#### ⚠️ ADAPTIVE THROTTLING DETECTED
+```
+Per-second reset rate drops significantly over time (late buckets <60% of early)
+Classification: PARTIAL PROTECTION — confirm with infrastructure team
+Meaning: Server or edge slowing the attack adaptively
+```
+
+#### ⚠️ STREAM REFUSAL DETECTED
+```
+Server sends REFUSED_STREAM (0x7) responses
+Classification: PARTIAL PROTECTION — review rate limits
+Meaning: Some stream-level rate-limiting in place
+```
+
+#### ❌ NO PROTOCOL-LAYER ENFORCEMENT OBSERVED
+```
+No ENHANCE_YOUR_CALM GOAWAY, no TCP resets, no throttling detected
+Classification: VECTOR EXERCISABLE — exploitability unconfirmed
+Important: This doesn't prove DoS exploitability. Edge volumetric/behavioral 
+protections (Akamai, CloudFlare) may engage at higher scales
+```
+
+### Sample Output
+
+```
+============================================================
+ENFORCEMENT SIGNAL ANALYSIS
+============================================================
+Server SETTINGS (initial frame):
+  HEADER_TABLE_SIZE = 4096
+  ENABLE_PUSH = True
+  MAX_CONCURRENT_STREAMS = 128
+  INITIAL_WINDOW_SIZE = 65535
+  MAX_FRAME_SIZE = 16384
+  → MAX_CONCURRENT_STREAMS=128 is conservative (good post-CVE default)
+
+GOAWAY breakdown across connections:
+  ENHANCE_YOUR_CALM (0xb): 3/5
+  Other GOAWAY codes:      1/5
+  No GOAWAY received:      1/5
+  TCP reset (RST at transport): 0/5
+  Total RST_STREAM frames from server: 2
+  REFUSED_STREAM frames from server:   0
+  Connections showing adaptive throttling: 1/5
+
+============================================================
+VERDICT
+============================================================
+✅ ENFORCEMENT CONFIRMED
+   3/5 connection(s) received GOAWAY with ENHANCE_YOUR_CALM (0xb).
+   This is the canonical signal that the CVE-2023-44487 mitigation is active.
+   Classification: NOT VULNERABLE — protocol-layer enforcement is engaged.
+```
+
+### Advanced Usage Examples
+
+#### 1. Post-Patch Verification
+```bash
+# Verify patch deployment with 10 connections, 500 streams each
+python3 cve_2023_44487_verifier_enhanced.py prod-api.example.com \
+    -c 10 \
+    -s 500 \
+    -d 0.0001 \
+    -v
+```
+
+#### 2. Custom Port and Protocol
+```bash
+# Test non-standard HTTPS port
+python3 cve_2023_44487_verifier_enhanced.py example.com \
+    -p 8443 \
+    -c 5 \
+    -s 1000
+```
+
+#### 3. Infrastructure Compliance Check
+```bash
+# Minimal load compliance test
+python3 cve_2023_44487_verifier_enhanced.py example.com \
+    -c 3 \
+    -s 200 \
+    --baseline-only
+```
+
+### Technical Details
+
+#### HTTP/2 Enforcement Signals
+
+**ENHANCE_YOUR_CALM (Error Code 0xb):**
+- Canonical HTTP/2 rate-limiting signal (RFC 9113)
+- Server responds to rapid reset attack with GOAWAY 0xb
+- Indicates protocol-layer defense is active
+- Best practice post-CVE-2023-44487 mitigation
+
+**REFUSED_STREAM (Error Code 0x7):**
+- Server refuses to open new streams
+- Alternative stream-level rate-limiting mechanism
+- Less common but still valid defense
+
+**Per-Second Reset Rate Analysis:**
+- Buckets stream resets into 1-second windows
+- Detects adaptive throttling: if late buckets <<early buckets, server is adapting
+- Suggests intelligent rate-limiting (not just hard limits)
+
+**TCP RST at Transport Layer:**
+- Connection terminated at TCP layer before graceful HTTP/2 close
+- Suggests edge appliance or firewall intervention
+- Not HTTP/2 protocol-layer enforcement, but effective
+
+#### Connection Close Classifications
+
+| Close Cause | Meaning |
+|-------------|---------|
+| `goaway_enhance_your_calm` | GOAWAY 0xb received (best indicator of CVE fix) |
+| `goaway_*` | GOAWAY with other error code |
+| `tcp_reset` | TCP RST received (edge-level intervention) |
+| `broken_pipe` / `recv_error` | Connection error during communication |
+| `eof_no_goaway` | Unexpected EOF without GOAWAY |
+| `no_close_no_enforcement` | Connection stayed open (no enforcement detected) |
+
+### Integration Examples
+
+#### Python Automation
+```python
+import asyncio
+import subprocess
+
+def run_verification(target: str, num_connections: int = 3):
+    cmd = [
+        'python3', 'cve_2023_44487_verifier_enhanced.py',
+        target,
+        '-c', str(num_connections),
+        '-s', '500',
+        '-v'
+    ]
+    
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    
+    # Parse verdict from output
+    if "ENFORCEMENT CONFIRMED" in result.stdout:
+        print(f"✅ {target} is protected")
+        return "protected"
+    elif "LIKELY PROTECTED" in result.stdout:
+        print(f"⚠️  {target} has edge-level protection")
+        return "edge_protected"
+    else:
+        print(f"❌ {target} shows no enforcement")
+        return "vulnerable"
+
+# Run test
+status = run_verification("example.com", 5)
+```
+
+#### Continuous Monitoring
+```bash
+#!/bin/bash
+# Monitor critical services weekly
+
+TARGETS="api.example.com web.example.com cdn.example.com"
+LOG_DIR="/var/log/cve-2023-44487"
+mkdir -p "$LOG_DIR"
+
+for target in $TARGETS; do
+    python3 cve_2023_44487_verifier_enhanced.py "$target" \
+        -c 3 \
+        -s 500 \
+        -v > "$LOG_DIR/$target-$(date +%Y%m%d).log" 2>&1
+done
+```
+
+---
+
+# 🚀 Attack Testing Tool (Legacy)
+
+## `rapid_reset_test.py`
+
+**Purpose:** Comprehensive HTTP/2 Rapid Reset attack testing with multiple patterns
+
+### Features
+
 - ⚡ **Rapid Reset**: Standard HEADERS + immediate RST_STREAM
 - 💥 **Burst Reset**: Requests in bursts with configurable delays
 - 📈 **Gradual Reset**: Gradually increasing attack rate
 - 🎲 **Random Reset**: Random timing to bypass predictive filtering
 - 🌊 **Continuation Flood**: CONTINUATION frame flood attack
 - 🔀 **Mixed Pattern**: Combination of multiple patterns
-
-### **Granular Configuration**
-- 📡 **Connection Controls**: Timeouts, delays, concurrent limits
-- ⏱️ **Timing Controls**: Precise timing with jitter support
-- 🌐 **HTTP/2 Protocol**: Window sizes, frame sizes, HPACK settings
-- 📋 **Header Customization**: Custom headers, random generation
-- 🔬 **Advanced Options**: Stream ID randomization, priority frames
-- 📊 **Monitoring**: Latency tracking, traffic analysis, error monitoring
-
-### **Output Formats**
-- 🖥️ **Console**: Human-readable with progress updates
-- 📋 **JSON**: Machine-readable structured data
-- 📊 **CSV**: Spreadsheet-compatible for analysis
-- 🗃️ **XML**: Enterprise tool integration
-
-### **Safety Features**
-- 🛡️ **Authorization Controls**: Mandatory confirmation prompts
-- 🔒 **Rate Limiting**: Built-in connection and request limits
-- 🎛️ **Error Handling**: Graceful failure handling
-- 📝 **Audit Trail**: Comprehensive logging capabilities
-
-## 📋 Requirements
-
-- Python 3.7 or higher
-- No external dependencies (uses only Python standard library)
-
-## 📖 Installation
-
-1. **Clone or download the script:**
-```bash
-git clone https://github.com/madhusudhan-in/CVE_2023_44487-Rapid_Reset.git
-cd CVE_2023_44487-Rapid_Reset
-```
-
-2. **Make the script executable:**
-```bash
-chmod +x rapid_reset_test.py
-```
-
-3. **Verify Python version:**
-```bash
-python3 --version  # Should be 3.7+
-```
-
-## 🔧 Usage
 
 ### Basic Usage
 
@@ -87,7 +316,7 @@ python3 rapid_reset_test.py https://target-server.com
 
 ### Advanced Usage Examples
 
-#### 1. High-Throughput Load Testing
+#### High-Throughput Load Testing
 ```bash
 python3 rapid_reset_test.py https://target.com \
     --connections 50 \
@@ -98,17 +327,17 @@ python3 rapid_reset_test.py https://target.com \
     --output json
 ```
 
-#### 2. Stealth Testing with Custom Headers
+#### Stealth Testing with Custom Headers
 ```bash
 python3 rapid_reset_test.py https://target.com \
     --pattern burst_reset \
     --burst-size 5 \
     --burst-delay 2.0 \
-    --custom-headers "User-Agent: Mozilla/5.0 (legitbot)" "Authorization: Bearer token123" \
+    --custom-headers "User-Agent: Mozilla/5.0" \
     --jitter 0.3
 ```
 
-#### 3. Protocol-Specific Testing
+#### Protocol-Specific Testing
 ```bash
 python3 rapid_reset_test.py https://target.com \
     --window-size 32768 \
@@ -119,30 +348,7 @@ python3 rapid_reset_test.py https://target.com \
     --randomize-streams
 ```
 
-#### 4. Comprehensive Monitoring Test
-```bash
-python3 rapid_reset_test.py https://target.com \
-    --connections 10 \
-    --requests 200 \
-    --pattern mixed_pattern \
-    --track-latency \
-    --track-responses \
-    --monitor-memory \
-    --verbose \
-    --debug \
-    --log-file attack.log
-```
-
-#### 5. CONTINUATION Flood Attack
-```bash
-python3 rapid_reset_test.py https://target.com \
-    --pattern continuation_flood \
-    --requests 50 \
-    --random-headers \
-    --header-count 20
-```
-
-### Complete Command Line Options
+### Command Line Options
 
 #### Connection Settings
 | Option | Description | Default |
@@ -184,28 +390,6 @@ python3 rapid_reset_test.py https://target.com \
 | `--enable-push` | Enable HTTP/2 server push | False |
 | `--rst-error-code CODE` | RST_STREAM error code | 8 |
 
-#### Header Customization
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--custom-headers HEADER` | Custom headers (Name: Value) | None |
-| `--random-headers` | Generate random headers | False |
-| `--header-count N` | Number of random headers | 5 |
-
-#### Advanced Options
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--randomize-streams` | Use random stream IDs | False |
-| `--priority-frames` | Include priority information | False |
-| `--continue-on-error` | Continue after errors | True |
-| `--max-errors N` | Maximum errors before stopping | 10 |
-
-#### Monitoring Options
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--track-latency` | Track request latency | False |
-| `--track-responses` | Track server responses | False |
-| `--monitor-memory` | Monitor memory usage | False |
-
 #### Output Options
 | Option | Description | Default |
 |--------|-------------|---------|
@@ -221,45 +405,6 @@ python3 rapid_reset_test.py https://target.com \
 - `csv` - Spreadsheet-compatible CSV
 - `xml` - Structured XML format
 
-## 📊 Understanding Results
-
-### Enhanced Result Format
-
-The tool provides comprehensive results including:
-
-- **Attack Configuration**: Complete test parameters
-- **Connection Statistics**: Per-connection success/failure rates
-- **Traffic Analysis**: Bytes sent/received, request rates
-- **Latency Metrics**: Request timing analysis (if enabled)
-- **Error Analysis**: Detailed error tracking and categorization
-- **Risk Assessment**: Automated vulnerability scoring
-
-### Sample JSON Output Structure
-
-```json
-{
-  "target_url": "https://example.com",
-  "test_config": {
-    "attack_pattern": "rapid_reset",
-    "max_connections": 10,
-    "requests_per_connection": 100,
-    "delay_between_headers_rst": 0.001
-  },
-  "test_summary": {
-    "duration": 2.34,
-    "successful_connections": 10,
-    "total_successful_attacks": 950,
-    "success_rate": 95.0,
-    "requests_per_second": 405.98,
-    "total_bytes_sent": 125600,
-    "average_latency": 0.0024
-  },
-  "connection_stats": [...],
-  "errors": [...],
-  "timestamp": 1640995200.0
-}
-```
-
 ### Risk Assessment
 
 The tool automatically assesses vulnerability:
@@ -268,201 +413,101 @@ The tool automatically assesses vulnerability:
 - 🟡 **MEDIUM RISK** (50-80% success): Partial vulnerability
 - 🟢 **LOW RISK** (<50% success): Mitigations appear effective
 
-## 🔬 Technical Details
-
-### Attack Methodologies
-
-1. **Rapid Reset**: Sends HEADERS immediately followed by RST_STREAM
-2. **Burst Reset**: Groups requests into bursts with configurable delays
-3. **Gradual Reset**: Progressively increases attack intensity
-4. **Random Reset**: Uses unpredictable timing patterns
-5. **Continuation Flood**: Exploits CONTINUATION frame processing
-6. **Mixed Pattern**: Combines multiple techniques
-
-### HTTP/2 Implementation
-
-- Proper HTTP/2 connection preface handling
-- SETTINGS frame negotiation with custom parameters
-- Advanced HPACK header compression options
-- Stream multiplexing with configurable stream IDs
-- Frame structure compliant with RFC 7540
-- Support for HTTP/2 extensions and priority frames
-
-### Monitoring Capabilities
-
-- **Latency Tracking**: Microsecond-precision timing
-- **Traffic Analysis**: Comprehensive byte-level monitoring
-- **Error Classification**: Detailed error categorization
-- **Performance Metrics**: Request rates and throughput analysis
-- **Protocol Debugging**: Frame-level inspection capabilities
-
-## 🛡️ Mitigation Strategies
-
-If your server is found vulnerable, implement these mitigations:
-
-### Immediate Actions
-1. **Update HTTP/2 implementations** to the latest versions
-2. **Enable rate limiting** for HTTP/2 streams and connections
-3. **Configure connection limits** and request timeouts
-4. **Implement stream reset monitoring** and blocking
-
-### Advanced Protections
-1. **Deploy HTTP/2-aware load balancers** with attack protection
-2. **Configure adaptive rate limiting** based on connection patterns
-3. **Implement request prioritization** and resource allocation limits
-4. **Monitor server resources** and implement alerting
-5. **Use connection coalescing** and multiplexing controls
-
-### Monitoring and Detection
-1. **Monitor RST_STREAM rates** and patterns
-2. **Track connection establishment rates**
-3. **Implement anomaly detection** for HTTP/2 traffic
-4. **Log and analyze** attack patterns for future protection
-
-## 🔗 Integration Examples
-
-### Python Automation
-```python
-import subprocess
-import json
-
-# Run automated test
-result = subprocess.run([
-    'python3', 'rapid_reset_test.py',
-    'https://target.com',
-    '--pattern', 'mixed_pattern',
-    '--output', 'json',
-    '--output-file', 'results.json'
-])
-
-# Analyze results
-with open('results.json') as f:
-    data = json.load(f)
-    vulnerability_score = data['test_summary']['success_rate']
-    if vulnerability_score > 80:
-        print(f"HIGH RISK: {vulnerability_score}% success rate")
-```
-
-### Continuous Monitoring
-```bash
-#!/bin/bash
-# Cron job: 0 2 * * * /path/to/monitor.sh
-
-python3 rapid_reset_test.py https://myserver.com \
-    --pattern rapid_reset \
-    --connections 5 \
-    --requests 50 \
-    --output json \
-    --output-file /var/log/rapid-reset-$(date +%Y%m%d).json
-
-# Alert if vulnerability detected
-if [ $(jq '.test_summary.success_rate' /var/log/rapid-reset-$(date +%Y%m%d).json) -gt 80 ]; then
-    echo "ALERT: Server vulnerable to rapid reset attack" | mail -s "Security Alert" admin@example.com
-fi
-```
-
-### Data Analysis
-```python
-import pandas as pd
-import matplotlib.pyplot as plt
-
-# Load and analyze CSV results
-df = pd.read_csv('results.csv')
-
-# Visualize attack success by connection
-plt.figure(figsize=(12, 6))
-plt.subplot(1, 2, 1)
-df.plot(x='connection_id', y='successful_attacks', kind='bar')
-plt.title('Attack Success by Connection')
-
-plt.subplot(1, 2, 2)
-df['success_rate'] = (df['successful_attacks'] / df['total_attacks']) * 100
-plt.hist(df['success_rate'], bins=20)
-plt.title('Success Rate Distribution')
-plt.show()
-```
+---
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
-1. **Connection refused**: 
-   - Verify target supports HTTP/2
-   - Check firewall and network connectivity
-   - Ensure HTTPS is properly configured
+1. **"No module named 'h2'"**
+   ```bash
+   pip install h2
+   ```
 
-2. **SSL/TLS errors**: 
-   - Certificate validation issues
-   - Use `--debug` for detailed SSL information
-   - Check ALPN negotiation
+2. **Connection refused / timeout**
+   - Verify target supports HTTP/2: `curl -I --http2 https://target.com`
+   - Check firewall rules
+   - Verify SSL/TLS certificate is valid
 
-3. **Low success rates**:
-   - Server may have rate limiting enabled
-   - Try different attack patterns
-   - Adjust timing parameters
+3. **ImportError with h2 modules**
+   ```bash
+   pip install --upgrade h2
+   python3 --version  # Must be 3.7+
+   ```
 
-4. **Performance issues**:
-   - Reduce connection count for testing
-   - Use `--debug` and `--log-file` for analysis
-   - Monitor system resources
+4. **Permission denied**
+   ```bash
+   chmod +x *.py
+   python3 cve_2023_44487_verifier_enhanced.py target.com
+   ```
 
 ### Debug Steps
 
-1. **Enable verbose logging**: `--verbose --debug --log-file debug.log`
-2. **Test with minimal load**: `--connections 1 --requests 10`
-3. **Verify HTTP/2 support**: Use browser dev tools
-4. **Check server responses**: `--track-responses`
-5. **Monitor latency**: `--track-latency`
+1. **Enable verbose logging:**
+   ```bash
+   python3 cve_2023_44487_verifier_enhanced.py target.com -v
+   ```
+
+2. **Test with minimal parameters:**
+   ```bash
+   python3 cve_2023_44487_verifier_enhanced.py target.com -s 10 -c 1
+   ```
+
+3. **Verify HTTP/2 support:**
+   ```bash
+   python3 -c "import h2; print('h2 library OK')"
+   ```
+
+---
+
+## 📚 References
+
+- [CVE-2023-44487 Details](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-44487)
+- [RFC 9113 - HTTP/2 Specification](https://tools.ietf.org/html/rfc9113)
+- [NIST CVE Database](https://nvd.nist.gov/vuln/detail/CVE-2023-44487)
+- [Cloudflare Technical Analysis](https://blog.cloudflare.com/technical-breakdown-http2-rapid-reset-ddos-attack/)
+- [Google Security Blog](https://cloud.google.com/blog/products/identity-security/how-it-works-the-novel-http2-rapid-reset-ddos-attack)
+
+---
+
+## ⚖️ Legal Notice
+
+This repository is intended for cybersecurity professionals, researchers, and system administrators to test their own systems or systems they have explicit permission to test.
+
+**Key Legal Points:**
+- Only test systems you own or have written permission to test
+- Unauthorized testing may violate computer crime laws
+- These tools can cause real service disruption
+- Always inform relevant stakeholders before testing
+- Use during maintenance windows when possible
+- Document all testing activities for audit purposes
+- The authors are not responsible for unauthorized use
+
+**Remember: With great power comes great responsibility. Use these tools ethically and legally.**
+
+---
 
 ## 📄 License
 
 This tool is provided under the MIT License. See LICENSE file for details.
 
-## 🔗 References
+## 🆕 What's New
 
-- [CVE-2023-44487 Details](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-44487)
-- [RFC 7540 - HTTP/2 Specification](https://tools.ietf.org/html/rfc7540)
-- [NIST CVE Database](https://nvd.nist.gov/vuln/detail/CVE-2023-44487)
-- [Cloudflare Technical Analysis](https://blog.cloudflare.com/technical-breakdown-http2-rapid-reset-ddos-attack/)
-- [Google Security Blog](https://cloud.google.com/blog/products/identity-security/how-it-works-the-novel-http2-rapid-reset-ddos-attack)
+### Enhanced Verification Tool
+- ✅ **Server SETTINGS Capture**: Examine defensive HTTP/2 parameters
+- ✅ **GOAWAY Frame Analysis**: RFC 9113-compliant error code classification
+- ✅ **Adaptive Throttling Detection**: Identify rate-limiting patterns
+- ✅ **Intelligent Verdict System**: Clear classifications (enforcement confirmed, edge protected, vulnerable, etc.)
+- ✅ **Connection Close Classification**: Understand how/why connections terminate
+- ✅ **Concurrent Connection Testing**: Multiple simultaneous tests for reliability
 
-## ⚖️ Legal Notice
+### Tool Selection Guide
 
-This tool is intended for cybersecurity professionals, researchers, and system administrators to test their own systems or systems they have explicit permission to test. The authors are not responsible for any misuse of this tool.
-
-**Key Legal Points:**
-- Only test systems you own or have written permission to test
-- Unauthorized testing may violate computer crime laws
-- This tool can cause real service disruption
-- Always inform relevant stakeholders before testing
-- Use during maintenance windows when possible
-- Document all testing activities for audit purposes
-
-**Remember: With great power comes great responsibility. Use this tool ethically and legally.**
-
-## 🆕 What's New in Enhanced Version
-
-### Version 2.0 Features
-- ✅ **6 Attack Patterns**: Multiple sophisticated attack vectors
-- ✅ **40+ Configuration Options**: Granular control over all parameters
-- ✅ **4 Output Formats**: Console, JSON, CSV, XML support
-- ✅ **Advanced Monitoring**: Latency tracking, traffic analysis, error monitoring
-- ✅ **Protocol Customization**: HTTP/2 window sizes, frame sizes, HPACK settings
-- ✅ **Header Manipulation**: Custom headers, random generation, CONTINUATION floods
-- ✅ **Timing Controls**: Jitter support, burst patterns, gradual escalation
-- ✅ **Safety Enhancements**: Better rate limiting, error handling, audit trails
-- ✅ **Integration Ready**: JSON/CSV output for automation and analysis
-
-### Migration from Basic Version
-The enhanced version maintains backward compatibility with the basic version. All existing command-line options continue to work, with new options providing additional capabilities.
-
-For users upgrading from the basic version:
-```bash
-# Old basic usage still works
-python3 rapid_reset_test.py https://example.com --connections 5 --requests 100
-
-# New enhanced usage with additional options
-python3 rapid_reset_test.py https://example.com \
-    --connections 5 --requests 100 \
-    --pattern burst_reset --track-latency --output json
-```
+| Use Case | Tool | Reason |
+|----------|------|--------|
+| Post-patch verification | `cve_2023_44487_verifier_enhanced.py` | Detects enforcement signals |
+| Compliance checking | `cve_2023_44487_verifier_enhanced.py` | Validates CVE mitigation |
+| Infrastructure assessment | `cve_2023_44487_verifier_enhanced.py` | Clear, actionable verdicts |
+| Attack research | `rapid_reset_test.py` | Multiple attack patterns |
+| Performance testing | `rapid_reset_test.py` | Comprehensive metrics |
+| Custom patterns | `rapid_reset_test.py` | Granular configuration |
